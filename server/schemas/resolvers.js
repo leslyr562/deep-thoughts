@@ -4,6 +4,18 @@ const { signToken } = require('../utils/auth');
 
 const resolvers = {
   Query: {
+    me: async (parent, args, context) => {
+      if (context.user) {
+        const userData = await User.findOne({ _id: context.user._id })
+          .select('-__v -password')
+          .populate('thoughts')
+          .populate('friends');
+    
+        return userData;
+      }
+    
+      throw new AuthenticationError('Not logged in');
+    },
     //Here, we pass in the parent as more of a placeholder parameter. 
     //It won't be used, but we need something in that first parameter's
     // spot so we can access the username argument from the second parameter. 
@@ -27,18 +39,6 @@ const resolvers = {
         .select('-__v -password')
         .populate('friends')
         .populate('thoughts');
-    },
-    me: async (parent, args, context) => {
-      if (context.user) {
-        const userData = await User.findOne({ _id: context.user._id })
-          .select('-__v -password')
-          .populate('thoughts')
-          .populate('friends');
-    
-        return userData;
-      }
-    
-      throw new AuthenticationError('Not logged in');
     }
   },
   Mutation: {
@@ -71,6 +71,7 @@ const resolvers = {
         await User.findByIdAndUpdate(
           { _id: context.user._id },
           { $push: { thoughts: thought._id } },
+          //without the new: true Mongo will return the original instead of the updated
           { new: true }
         );
     
@@ -96,6 +97,7 @@ const resolvers = {
       if (context.user) {
         const updatedUser = await User.findOneAndUpdate(
           { _id: context.user._id },
+          //addToSet make sures no duplicates happen
           { $addToSet: { friends: friendId } },
           { new: true }
         ).populate('friends');
